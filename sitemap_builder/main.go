@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
+	"io/ioutil"
+	"log"
 	"net/http"
+	"strings"
 
 	"golang.org/x/net/html"
 )
@@ -13,16 +15,37 @@ func main() {
 	urlFlag := flag.String("url", "https://gophercises.com", "The url that you want to build a sitemap for")
 	flag.Parse()
 
-	resp, err := http.Get(*urlFlag)
-	check(err)
+	lastStep(*urlFlag, "/")
 
-	for _, v := range getLinks(resp.Body) {
-		fmt.Println(v)
+}
+
+func lastStep(url string, path string) {
+	full_link := url + path
+	resp_body := getUrl(full_link)
+
+	links := getLinks(resp_body)
+	unique_links := unique(links)
+	internal_links := getInternalLinks(unique_links)
+
+	for n, path := range internal_links {
+		fmt.Printf("%d -> %s%s\n", n, url, path)
+		lastStep(url, path)
 	}
 
 }
 
-func getLinks(body io.Reader) []string {
+func getUrl(url string) string {
+	resp, err := http.Get(url)
+	check(err)
+
+	resp_body, err := ioutil.ReadAll(resp.Body)
+	check(err)
+
+	return string(resp_body)
+}
+
+func getLinks(resp_body string) []string {
+	body := strings.NewReader(resp_body)
 	var links []string
 	z := html.NewTokenizer(body)
 
@@ -43,11 +66,35 @@ func getLinks(body io.Reader) []string {
 			}
 		}
 	}
+	return links
+}
 
+func getInternalLinks(links []string) []string {
+	var internalLinks []string
+	for _, link := range links {
+		if link == "/" {
+			continue
+		} else if strings.HasPrefix(link, "/") {
+			internalLinks = append(internalLinks, link)
+		}
+	}
+	return internalLinks
+}
+
+func unique(input []string) []string {
+	keys := make(map[string]bool)
+	output := []string{}
+	for _, entry := range input {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			output = append(output, entry)
+		}
+	}
+	return output
 }
 
 func check(e error) {
 	if e != nil {
-		panic(e)
+		log.Fatal(e)
 	}
 }
