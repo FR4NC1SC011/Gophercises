@@ -11,15 +11,22 @@ import (
 	"golang.org/x/net/html"
 )
 
+var paths []string
+
 func main() {
 	urlFlag := flag.String("url", "https://gophercises.com", "The url that you want to build a sitemap for")
 	flag.Parse()
 
-	lastStep(*urlFlag, "/")
+	P := lastStep(*urlFlag, "/")
+	P_unique := unique(P)
+	for n, p := range P_unique {
+		fmt.Printf("%d -> %s%s\n", n, *urlFlag, p)
+	}
 
 }
 
-func lastStep(url string, path string) {
+func lastStep(url string, path string) []string {
+
 	full_link := url + path
 	resp_body := getUrl(full_link)
 
@@ -27,10 +34,12 @@ func lastStep(url string, path string) {
 	unique_links := unique(links)
 	internal_links := getInternalLinks(unique_links)
 
-	for n, path := range internal_links {
-		fmt.Printf("%d -> %s%s\n", n, url, path)
+	for _, path := range internal_links {
+		paths = append(paths, path)
 		lastStep(url, path)
 	}
+
+	return paths
 
 }
 
