@@ -17,7 +17,7 @@ func main() {
 	urlFlag := flag.String("url", "https://gophercises.com", "The url that you want to build a sitemap for")
 	flag.Parse()
 
-	P := lastStep(*urlFlag, "/")
+	P := search(*urlFlag, "/")
 	P_unique := unique(P)
 	for n, p := range P_unique {
 		fmt.Printf("%d -> %s%s\n", n, *urlFlag, p)
@@ -25,7 +25,7 @@ func main() {
 
 }
 
-func lastStep(url string, path string) []string {
+func search(url string, path string) []string {
 
 	full_link := url + path
 	resp_body := getUrl(full_link)
@@ -36,7 +36,7 @@ func lastStep(url string, path string) []string {
 
 	for _, path := range internal_links {
 		paths = append(paths, path)
-		lastStep(url, path)
+		search(url, path)
 	}
 
 	return paths
