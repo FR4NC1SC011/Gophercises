@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -28,10 +29,14 @@ func main() {
 	defer sqliteDatabase.Close()
 
 	createTable(sqliteDatabase)
-	insertStudent(sqliteDatabase, "Francisco", "(614) 1634 881")
-	insertStudent(sqliteDatabase, "Martin", "6141561325")
+	insertStudent(sqliteDatabase, "Martin", "614 1561325")
 	insertStudent(sqliteDatabase, "Javier", "614-123-4567")
+	insertStudent(sqliteDatabase, "Francisco", "(614) 163 4881")
 
+	displayStudents(sqliteDatabase)
+	fmt.Println("\n\n")
+	normalizeNumbers(sqliteDatabase)
+	fmt.Println("\n\n")
 	displayStudents(sqliteDatabase)
 
 }
@@ -59,8 +64,19 @@ func insertStudent(db *sql.DB, name string, number string) {
 	check(err)
 }
 
+func normalizeNumbers(db *sql.DB) {
+	numbers := getNumbers(db)
+
+	for i, number := range numbers {
+		normalizeNumberSQL := fmt.Sprintf(`UPDATE client SET number = %s WHERE idClient = %d`, normalize(number), i+1)
+		statement, err := db.Prepare(normalizeNumberSQL)
+		check(err)
+		statement.Exec()
+	}
+}
+
 func displayStudents(db *sql.DB) {
-	row, err := db.Query("SELECT * FROM client ORDER BY name")
+	row, err := db.Query("SELECT * FROM client ORDER BY idClient")
 	check(err)
 	defer row.Close()
 
@@ -69,9 +85,23 @@ func displayStudents(db *sql.DB) {
 		var name string
 		var number string
 		row.Scan(&id, &name, &number)
-		log.Println("Student: ", name, " ", number)
+		log.Println("Student: ", id, " ", name, " ", number)
 	}
+}
 
+func getNumbers(db *sql.DB) []string {
+	var numbers []string
+
+	row, err := db.Query("SELECT number FROM client ORDER BY idClient")
+	check(err)
+	defer row.Close()
+
+	for row.Next() {
+		var number string
+		row.Scan(&number)
+		numbers = append(numbers, number)
+	}
+	return numbers
 }
 
 func normalize(number string) string {
