@@ -11,13 +11,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const (
-	host     = "localhost"
-	port     = 5432
-	user     = "fco"
-	password = "pass"
-)
-
 func main() {
 	log.Println("Creating sqlite-database.db...")
 	file, err := os.Create("sqlite-database.db")
@@ -32,6 +25,8 @@ func main() {
 	insertStudent(sqliteDatabase, "Martin", "614 1561325")
 	insertStudent(sqliteDatabase, "Javier", "614-123-4567")
 	insertStudent(sqliteDatabase, "Francisco", "(614) 163 4881")
+	insertStudent(sqliteDatabase, "Hector", "614 1561325")
+	insertStudent(sqliteDatabase, "Ousmane", "6141561325")
 
 	displayStudents(sqliteDatabase)
 	fmt.Println("\n\n")
@@ -68,14 +63,21 @@ func normalizeNumbers(db *sql.DB) {
 	numbers := getNumbers(db)
 
 	for i, number := range numbers {
-		normalizeNumberSQL := fmt.Sprintf(`UPDATE client SET number = %s WHERE idClient = %d`, normalize(number), i+1)
+		normalizeNumberSQL := fmt.Sprintf(`UPDATE client SET number = %s WHERE idClient = %d`, number, i+1)
 		statement, err := db.Prepare(normalizeNumberSQL)
 		check(err)
 		statement.Exec()
 	}
+
+	//fmt.Println("DUPLICATE:", unique(numbers))
 }
 
 func displayStudents(db *sql.DB) {
+	deleteDuplicateNumbersSQL := `DELETE FROM client WHERE rowid NOT IN (SELECT min(rowid) FROM client GROUP BY number)`
+	statement, err := db.Prepare(deleteDuplicateNumbersSQL)
+	check(err)
+	statement.Exec()
+
 	row, err := db.Query("SELECT * FROM client ORDER BY idClient")
 	check(err)
 	defer row.Close()
@@ -91,6 +93,7 @@ func displayStudents(db *sql.DB) {
 
 func getNumbers(db *sql.DB) []string {
 	var numbers []string
+	var normalized_numbers []string
 
 	row, err := db.Query("SELECT number FROM client ORDER BY idClient")
 	check(err)
@@ -101,7 +104,12 @@ func getNumbers(db *sql.DB) []string {
 		row.Scan(&number)
 		numbers = append(numbers, number)
 	}
-	return numbers
+
+	for _, number := range numbers {
+		normalized_numbers = append(normalized_numbers, normalize(number))
+	}
+
+	return normalized_numbers
 }
 
 func normalize(number string) string {
@@ -121,6 +129,21 @@ func normalize(number string) string {
 
 // re := regexp.MustCompile("\\D")
 // return re.ReplaceAllString(number, "")
+
+func unique(arr []string) []int {
+	occured := map[string]bool{}
+	result := []int{}
+	for e := range arr {
+		if occured[arr[e]] != true {
+			occured[arr[e]] = true
+
+			fmt.Println(arr[e])
+			result = append(result, e+1)
+		}
+	}
+
+	return result
+}
 
 func check(e error) {
 	if e != nil {
